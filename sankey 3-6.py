@@ -47,10 +47,17 @@ import matplotlib.pyplot as plt
 # df = uses
 # fig = px.sunburst(uses, path=['Business Unit','Product'], values='value')
 
+"""for getSankey test purposes"""
+df = pd.read_csv(r'C:\Users\Andrew\Documents\Python Scripts\data set\AB_NYC_2019.csv')
+cat_cols = ["neighbourhood","room_type"]
+value_cols="number_of_reviews"
+title="AirBnb Review Sankey"
+
 # credit to https://medium.com/kenlok/how-to-create-sankey-diagrams-from-dataframes-in-python-e221c1b4d6b0
 def genSankey(df,cat_cols=[],value_cols='',title='Sankey Diagram'):
-    # maximum of 6 value cols -> 6 colors
-    colorPalette = ['#4B8BBE','#306998','#FFE873','#FFD43B','#646464']
+# maximum of 6 value cols -> 6 colors
+    colorPalette = ['#F27420','#4994CE','#FABC13','#7FC241','#D3D3D3']
+    colorPaletteLink = ['rgb(255, 198, 196)','rgb(104, 171, 184)','rgb(254, 246, 181)']
     labelList = []
     colorNumList = []
     for catCol in cat_cols:
@@ -60,12 +67,24 @@ def genSankey(df,cat_cols=[],value_cols='',title='Sankey Diagram'):
 
     # remove duplicates from labelList
     labelList = list(dict.fromkeys(labelList))
-
+    
+    #assign new color to each node
+    # color=[]
+    # i=0
+    # while i < 500:
+    #     for colors in colorPalette:
+    #         color = color + [colors]
+    #         i+=1
+                   
     # define colors based on number of levels
     colorList = []
     for idx, colorNum in enumerate(colorNumList):
         colorList = colorList + [colorPalette[idx]]*colorNum  
-
+    
+    # colorLink= []
+    # for idx, colorNum in enumerate(colorNumList):
+    #     colorLink = colorLink + [colorPaletteLink[idx]]*colorNum  
+    
     # transform df into a source-target pair
     for i in range(len(cat_cols)-1):
         if i==0:
@@ -79,41 +98,43 @@ def genSankey(df,cat_cols=[],value_cols='',title='Sankey Diagram'):
     # add index for source-target pair
     sourceTargetDf['sourceID'] = sourceTargetDf['source'].apply(lambda x: labelList.index(x))
     sourceTargetDf['targetID'] = sourceTargetDf['target'].apply(lambda x: labelList.index(x))
-
-       # creating the sankey diagram
+    
+    colorLink = [colorPaletteLink]*len(sourceTargetDf['sourceID'])
+        # creating the sankey diagram
     data = dict(
         type='sankey',
         arrangement = "perpendicular", #perpendicular (move up down), freeform (movement affects others), snap (creates spaces in child)
         node = dict(
-          pad = 15,
+          pad = 20,
           thickness = 20,
           valuesuffix = "($m)",
           
           line = dict(
             color = "black",
-            width = 0.5
+            width = 0
           ),
           label = labelList,
           color = colorList
         ),
-
+    
         link = dict(
           source = sourceTargetDf['sourceID'],
           target = sourceTargetDf['targetID'],
-          value = sourceTargetDf['count']
+          value = sourceTargetDf['count'],
+          # color = color
         )
       )
-
+    
     layout =  dict(
         title = title,
         font = dict(
           size = 15
         )
     )
-
+    
     fig = dict(data=[data], layout=layout)
     return fig
-
+# 
 def create_time_series(dff,label, title):
     return {
         'data': [dict(
@@ -153,38 +174,40 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 df = pd.read_csv(r'C:\Users\Andrew\Documents\Python Scripts\data set\AB_NYC_2019.csv')
 available_indicators = df['neighbourhood'].unique()
 
-cal_fig=px.density_heatmap(df2, x="sepal_width", y="sepal_length", marginal_x="rug", marginal_y="histogram")
+cal_fig=px.density_heatmap(df2, x="sepal_width", y="sepal_length")# marginal_x="rug", marginal_y="histogram")
 
-"""can we make this an on-hover?"""
+""" adding what if analysis as tab two? dragging of forecast points or something. also seasonal_decomp then plot with plotly"""
+
 app.layout = html.Div([
     html.Div([
-    dcc.Graph(id='sankey', figure={'layout': {'height':1500}}),
-    ], style={'width': '58%', 'display': 'inline-block'}),
-    
-    html.Div([
-    html.Label('Select Path for Sankey Chart'),
+        
+    html.Label('Select Path for Breakdown'),
     dcc.Dropdown(
         id='Multi-Select Dropdown Path',
         options=[
         {'label': 'Borough', 'value': 'neighbourhood_group'},
         {'label': 'Neighbourhood', 'value': 'neighbourhood'},
         {'label': 'Rooms in Listing', 'value': 'room_type'},
-        ], value=['neighbourhood_group','neighbourhood'],
+        ], value=['neighbourhood_group','room_type'],
         multi=True
         ),
     
-    # html.Label('Select Business Area'),
-    # dcc.Dropdown(
-    #     id='Multi-Select Dropdown Business Area',
-    #     options=[{'label': i, 'value': i} for i in available_indicators]
-    #     , value=['Business Unit','Product'],
-    #     multi=True
-    #     ),
-    # html.Label('Select Product'),
+    html.Label('Select Business Area'),
+    dcc.Dropdown(
+        id='Multi-Select Dropdown Business Area',
+        options=[{'label': i, 'value': i} for i in available_indicators]
+        , value=[],
+        multi=True
+        ),
+    dcc.Graph(id='sankey', style={'layout': {'height':1000}}),
+    ],style={'width': '58%', 'display': 'inline-block'}), #left side div
+    
+    html.Div([
+    # html.Label('Select Product'), #make for entity and counterparty too
     # dcc.Dropdown(
     #     id='Multi-Select Dropdown Product',
     #     options=[{'label': i, 'value': i} for i in available_indicators]
-    #     , value=['Business Unit','Product'],
+    #     , value=[],
     #     multi=True
     #     ),
     
@@ -229,7 +252,7 @@ app.layout = html.Div([
     dcc.Graph(id='calendar', figure=cal_fig),
     
     html.Label('Can we add a percent flow hover, as well as commentary box? also add color shading to sankey and research hovertools'),
-    ], style={'width': '39%', 'float': 'right', 'display': 'inline-block'}),
+    ], style={'width': '39%', 'float': 'right', 'overflowY': 'scroll', 'display': 'inline-block'}), #right side div
 
 ])#, style={'columnCount': 2}) #overall style)
 
@@ -241,6 +264,7 @@ import json
 def show_click(hoverData):
     a=hoverData['points'][0]["label"]
     return a
+
 @app.callback(
     Output('hover-line','figure'),
     [Input('sankey','hoverData')])
@@ -253,27 +277,31 @@ def show_click_line(hoverData):
             dftemp=df[df["room_type"]==a]
     return px.histogram(dftemp, x="number_of_reviews")
 
-
 """sankey graph"""
 # add multiple inputs, for path as well
 @app.callback(
     Output('sankey', 'figure'),
     # [Input('month-slider', 'value'),
       # Input('day-slider', 'value'),
-      [Input('Multi-Select Dropdown Path', 'value')])
-      # Input('Multi-Select Dropdown Neighbourhood', 'value')])
-def update_figure(value):#month,day,value):
-    filtered_df=df
+      [Input('Multi-Select Dropdown Path', 'value'),
+       Input('Multi-Select Dropdown Business Area', 'value')])
+def update_figure(path,select):#month,day,value):
+    if len(select)!=0:
+        filtered_df=df[df["neighbourhood"]==select[0]]
+        if len(select)==2:
+            filtered_df=df[(df["neighbourhood"]==select[0]) | (df["neighbourhood"]==select[1])]
+    else:
+        filtered_df=df
     # filtered_df = df[df.month == month]
     # filtered_df = filtered_df[filtered_df.date == day]
     # filtered_df=filtered_df[BU]
-    a = value[0]
-    if len(value)>1:
-        b = value[1]
-        if len(value)>2:
-            c = value[2]
-            if len(value)>3:
-                d = value[3]
+    a = path[0]
+    if len(path)>1:
+        b = path[1]
+        if len(path)>2:
+            c = path[2]
+            if len(path)>3:
+                d = path[3]
                 return genSankey(filtered_df,cat_cols=[a,b,c,d],value_cols='number_of_reviews',title='Number of Reviews')
             return genSankey(filtered_df,cat_cols=[a,b,c],value_cols='number_of_reviews',title='Number of Reviews')
         return genSankey(filtered_df,cat_cols=[a,b],value_cols='number_of_reviews',title='Number of Reviews')
